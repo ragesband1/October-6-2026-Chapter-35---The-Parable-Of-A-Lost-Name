@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chapter 35 - The Parable Of A Lost Name</title>
+    <!-- Tailwind CSS for Responsive UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D Graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Inter:wght@300;400;600;700&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #08070b;
+            color: #f3f4f6;
+        }
+
+        .cinzel {
+            font-family: 'Cinzel', serif;
+        }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(18, 16, 26, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-panel-gold {
+            background: rgba(26, 22, 16, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(234, 179, 8, 0.4);
+            box-shadow: 0 0 15px rgba(234, 179, 8, 0.15);
+        }
+
+        /* Floating Damage Text */
+        .damage-text {
+            position: absolute;
+            font-weight: 800;
+            font-family: 'Cinzel', serif;
+            pointer-events: none;
+            animation: floatUpAndFade 1s ease-out forwards;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.9);
+            z-index: 50;
+        }
+
+        @keyframes floatUpAndFade {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            50% { opacity: 1; transform: translateY(-25px) scale(1.3); }
+            100% { opacity: 0; transform: translateY(-50px) scale(0.8); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 10, 15, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(212, 175, 55, 0.4);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(212, 175, 55, 0.7);
+        }
+
+        /* Joystick for Mobile Controls */
+        #joystick-zone {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full select-none overflow-hidden">
+
+    <!-- Canvas for 3D Game Engine -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0 cursor-crosshair"></div>
+
+    <!-- HUD OVERLAY -->
+    <div id="hud-layer" class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-4">
+        
+        <!-- Top Bar: Character Stats & Mini-map -->
+        <div class="flex justify-between items-start w-full">
+            <!-- Stats Panel -->
+            <div class="glass-panel rounded-xl p-3 flex items-center space-x-4 pointer-events-auto max-w-xs md:max-w-md">
+                <div class="relative">
+                    <div class="w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-yellow-500/60 bg-slate-900 flex items-center justify-center overflow-hidden shadow-lg">
+                        <i class="fa-solid fa-user-shield text-2xl md:text-3xl text-yellow-500"></i>
+                    </div>
+                    <span id="player-lvl" class="absolute -bottom-1 -right-1 bg-yellow-600 text-black font-bold text-xs px-2 py-0.5 rounded-full border border-yellow-300">Lv.1</span>
+                </div>
+                
+                <div class="flex-1 space-y-1.5">
+                    <div class="flex justify-between text-xs font-semibold text-gray-200">
+                        <span id="player-name" class="cinzel text-yellow-400 font-bold tracking-wide">Geta</span>
+                        <span id="hp-text">100 / 100</span>
+                    </div>
+                    <!-- HP Bar -->
+                    <div class="w-full h-3 bg-gray-950 rounded-full overflow-hidden border border-red-900/50">
+                        <div id="hp-bar" class="h-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-300 w-full"></div>
+                    </div>
+
+                    <!-- MP / Stamina Bar -->
+                    <div class="flex justify-between text-[10px] text-gray-400">
+                        <span>MP</span>
+                        <span id="mp-text">50 / 50</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-950 rounded-full overflow-hidden border border-blue-900/50">
+                        <div id="mp-bar" class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-300 w-full"></div>
+                    </div>
+
+                    <!-- EXP Bar -->
+                    <div class="w-full h-1 bg-gray-950 rounded-full overflow-hidden">
+                        <div id="exp-bar" class="h-full bg-yellow-400 transition-all duration-300 w-0"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mini-map & Active Location -->
+            <div class="flex flex-col items-end space-y-2 pointer-events-auto">
+                <div class="glass-panel p-1 rounded-xl border-2 border-yellow-500/40 relative w-28 h-28 md:w-36 md:h-36 overflow-hidden">
+                    <canvas id="minimap-canvas" class="w-full h-full rounded-lg"></canvas>
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="w-2 h-2 bg-yellow-400 rounded-full border border-black animate-ping"></div>
+                    </div>
+                </div>
+                <div class="glass-panel px-3 py-1 rounded-lg text-xs font-semibold text-yellow-300 cinzel tracking-wider" id="current-location">
+                    Corneville Shelter
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Objective / Boss Bar -->
+        <div class="w-full flex flex-col items-center justify-center space-y-2 pointer-events-none">
+            <!-- Boss Bar (Hidden by default) -->
+            <div id="boss-hud" class="glass-panel p-2.5 rounded-lg w-full max-w-lg border-red-600/50 hidden flex-col items-center">
+                <div class="flex justify-between w-full text-xs font-bold text-red-400 mb-1 cinzel">
+                    <span id="boss-name">Shadow of Temptation</span>
+                    <span id="boss-hp-text">500 / 500</span>
+                </div>
+                <div class="w-full h-3 bg-gray-950 rounded-full overflow-hidden border border-red-900">
+                    <div id="boss-hp-bar" class="h-full bg-gradient-to-r from-red-800 via-red-600 to-orange-500 w-full transition-all duration-200"></div>
+                </div>
+            </div>
+
+            <!-- Quest Floating Objective Banner -->
+            <div id="objective-banner" class="glass-panel-gold px-4 py-2 rounded-xl text-center pointer-events-auto transition-all duration-300 max-w-md">
+                <div class="text-[10px] uppercase tracking-widest text-yellow-500 font-semibold">Active Objective</div>
+                <div id="active-objective-text" class="text-xs md:text-sm font-semibold text-gray-100">
+                    Talk to Father Zeo or Mother Giya in Corneville.
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Controls & Menu Buttons -->
+        <div class="flex justify-between items-end w-full">
+            <!-- Navigation Action Buttons (Inventory, Quests, Skill Tree, Story) -->
+            <div class="flex space-x-2 pointer-events-auto">
+                <button onclick="toggleModal('inventory-modal')" class="glass-panel hover:bg-yellow-500/20 text-yellow-400 p-3 rounded-xl transition duration-200 border border-yellow-500/30">
+                    <i class="fa-solid fa-bag-shopping text-xl"></i>
+                    <span class="block text-[10px] font-bold mt-0.5">BAG</span>
+                </button>
+                <button onclick="toggleModal('quest-modal')" class="glass-panel hover:bg-yellow-500/20 text-yellow-400 p-3 rounded-xl transition duration-200 border border-yellow-500/30 relative">
+                    <i class="fa-solid fa-scroll text-xl"></i>
+                    <span class="block text-[10px] font-bold mt-0.5">QUESTS</span>
+                    <span id="quest-badge" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">!</span>
+                </button>
+                <button onclick="toggleModal('skills-modal')" class="glass-panel hover:bg-yellow-500/20 text-yellow-400 p-3 rounded-xl transition duration-200 border border-yellow-500/30">
+                    <i class="fa-solid fa-wand-magic-sparkles text-xl"></i>
+                    <span class="block text-[10px] font-bold mt-0.5">SKILLS</span>
+                </button>
+                <button onclick="toggleModal('story-modal')" class="glass-panel hover:bg-yellow-500/20 text-yellow-400 p-3 rounded-xl transition duration-200 border border-yellow-500/30">
+                    <i class="fa-solid fa-book-bookmark text-xl"></i>
+                    <span class="block text-[10px] font-bold mt-0.5">LORE</span>
+                </button>
+            </div>
+
+            <!-- Action Hotbar / Mobile Touch Controls -->
+            <div class="flex items-center space-x-3 pointer-events-auto">
+                <button id="btn-interact" class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-blue-900/70 border-2 border-blue-400 text-blue-200 active:scale-90 transition flex flex-col items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-hand text-lg"></i>
+                    <span class="text-[9px] font-bold">[E] TALK</span>
+                </button>
+                <button id="btn-attack" class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-red-900/80 border-2 border-red-500 text-red-100 active:scale-95 transition flex flex-col items-center justify-center shadow-lg shadow-red-950/50">
+                    <i class="fa-solid fa-burst text-2xl"></i>
+                    <span class="text-[9px] font-bold">[SPACE/ATK]</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NPC DIALOGUE SYSTEM -->
+    <div id="dialogue-box" class="absolute bottom-6 left-1/2 -translate-x-1/2 w-11/12 max-w-2xl glass-panel-gold rounded-2xl p-5 z-40 hidden pointer-events-auto border-2 border-yellow-500/50 shadow-2xl">
+        <div class="flex items-start space-x-4">
+            <div class="w-16 h-16 rounded-xl border-2 border-yellow-400 bg-slate-900 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                <i id="dialogue-avatar" class="fa-solid fa-user-ninja text-3xl text-yellow-400"></i>
+            </div>
+            <div class="flex-1">
+                <div id="dialogue-speaker" class="cinzel text-base md:text-lg font-bold text-yellow-400 mb-1">Father Zeo</div>
+                <div id="dialogue-text" class="text-xs md:text-sm text-gray-200 leading-relaxed h-16 overflow-y-auto pr-1">
+                    "Geta, you must listen carefully. We are leaving Corneville briefly to fetch food rations..."
+                </div>
+                <div class="flex justify-end mt-3">
+                    <button id="dialogue-next-btn" class="px-5 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-black font-bold text-xs rounded-lg transition duration-150 cinzel tracking-wider flex items-center space-x-1">
+                        <span>CONTINUE</span>
+                        <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: INVENTORY & EQUIPMENT -->
+    <div id="inventory-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-3xl rounded-2xl p-6 border border-yellow-500/40 relative max-h-[90vh] flex flex-col">
+            <button onclick="toggleModal('inventory-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h2 class="cinzel text-xl font-bold text-yellow-400 mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-toolbox"></i>
+                <span>Inventory & Equipment</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1">
+                <!-- Equipment Slots -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-gray-800">
+                    <h3 class="text-sm font-semibold text-yellow-500 mb-3 border-b border-gray-800 pb-1">Equipped Gear</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between bg-gray-900/80 p-2.5 rounded-lg border border-gray-800">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-yellow-950/40 border border-yellow-600/40 rounded flex items-center justify-center text-yellow-400">
+                                    <i class="fa-solid fa-sword"></i>
+                                </div>
+                                <div>
+                                    <div id="eq-weapon-name" class="text-xs font-bold text-gray-200">Wooden Training Sword</div>
+                                    <div class="text-[10px] text-gray-400">+5 ATK Damage</div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-yellow-600/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/30">WEAPON</span>
+                        </div>
+
+                        <div class="flex items-center justify-between bg-gray-900/80 p-2.5 rounded-lg border border-gray-800">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-blue-950/40 border border-blue-600/40 rounded flex items-center justify-center text-blue-400">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <div>
+                                    <div id="eq-armor-name" class="text-xs font-bold text-gray-200">Traveler's Tunic</div>
+                                    <div class="text-[10px] text-gray-400">+3 DEF Armor</div>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/30">ARMOR</span>
+                        </div>
+                    </div>
+
+                    <!-- Player Stats Summary -->
+                    <div class="mt-4 pt-3 border-t border-gray-800 grid grid-cols-2 gap-2 text-xs">
+                        <div class="text-gray-400">Attack: <span id="stat-atk" class="text-yellow-400 font-bold">12</span></div>
+                        <div class="text-gray-400">Defense: <span id="stat-def" class="text-blue-400 font-bold">5</span></div>
+                        <div class="text-gray-400">Speed: <span id="stat-spd" class="text-green-400 font-bold">10</span></div>
+                        <div class="text-gray-400">EXP Bonus: <span class="text-purple-400 font-bold">+0%</span></div>
+                    </div>
+                </div>
+
+                <!-- Bag Items -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-gray-800">
+                    <h3 class="text-sm font-semibold text-yellow-500 mb-3 border-b border-gray-800 pb-1">Backpack Items</h3>
+                    <div id="inventory-grid" class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                        <!-- Dynamic items generated in JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: QUEST LOG -->
+    <div id="quest-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-2xl rounded-2xl p-6 border border-yellow-500/40 relative max-h-[90vh] flex flex-col">
+            <button onclick="toggleModal('quest-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h2 class="cinzel text-xl font-bold text-yellow-400 mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-scroll"></i>
+                <span>Quest Journal</span>
+            </h2>
+
+            <div id="quest-list-container" class="space-y-3 overflow-y-auto pr-1">
+                <!-- Dynamic Quests generated in JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: SKILL TREE -->
+    <div id="skills-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-2xl rounded-2xl p-6 border border-yellow-500/40 relative max-h-[90vh] flex flex-col">
+            <button onclick="toggleModal('skills-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-2">
+                <h2 class="cinzel text-xl font-bold text-yellow-400 flex items-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Skill Tree & Discipline</span>
+                </h2>
+                <div class="text-xs bg-yellow-600/20 text-yellow-300 border border-yellow-500/30 px-3 py-1 rounded-full font-bold">
+                    Skill Points Available: <span id="skill-points-count">0</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
+                <div class="bg-gray-900/60 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <i class="fa-solid fa-shield-cat text-2xl text-blue-400"></i>
+                            <div>
+                                <h4 class="text-sm font-bold text-gray-100">Discipline Shield</h4>
+                                <p class="text-[11px] text-gray-400">Increases base defense by +5 per level.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="upgradeSkill('shield')" class="mt-3 w-full py-2 bg-blue-700 hover:bg-blue-600 text-white font-bold text-xs rounded-lg transition">
+                        UPGRADE (1 SP)
+                    </button>
+                </div>
+
+                <div class="bg-gray-900/60 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <i class="fa-solid fa-person-running text-2xl text-green-400"></i>
+                            <div>
+                                <h4 class="text-sm font-bold text-gray-100">Swift Steps</h4>
+                                <p class="text-[11px] text-gray-400">Boosts movement speed and dodge capability.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="upgradeSkill('speed')" class="mt-3 w-full py-2 bg-green-700 hover:bg-green-600 text-white font-bold text-xs rounded-lg transition">
+                        UPGRADE (1 SP)
+                    </button>
+                </div>
+
+                <div class="bg-gray-900/60 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <i class="fa-solid fa-hands-holding-child text-2xl text-yellow-400"></i>
+                            <div>
+                                <h4 class="text-sm font-bold text-gray-100">Samaritan's Blessing</h4>
+                                <p class="text-[11px] text-gray-400">Increases weapon attack damage by +8.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="upgradeSkill('attack')" class="mt-3 w-full py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold text-xs rounded-lg transition">
+                        UPGRADE (1 SP)
+                    </button>
+                </div>
+
+                <div class="bg-gray-900/60 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <i class="fa-solid fa-heart-pulse text-2xl text-red-400"></i>
+                            <div>
+                                <h4 class="text-sm font-bold text-gray-100">Parable of Healing</h4>
+                                <p class="text-[11px] text-gray-400">Instantly restores 50 HP when activated.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="upgradeSkill('heal')" class="mt-3 w-full py-2 bg-red-700 hover:bg-red-600 text-white font-bold text-xs rounded-lg transition">
+                        USE HEAL (10 MP)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: STORY LORE & MORAL LESSON -->
+    <div id="story-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel-gold w-full max-w-3xl rounded-2xl p-6 border-2 border-yellow-500/50 relative max-h-[90vh] flex flex-col">
+            <button onclick="toggleModal('story-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="text-center mb-4">
+                <div class="text-xs text-yellow-500 font-bold tracking-widest uppercase">March 25, 2020 • Samaritan Government & The Rages Band</div>
+                <h1 class="cinzel text-2xl font-black text-yellow-400 mt-1">Chapter 35: Bedtime Stories</h1>
+                <p class="text-sm italic text-yellow-200/80">"The Parable Of A Lost Name"</p>
+            </div>
+
+            <div class="bg-slate-950/70 p-4 rounded-xl border border-yellow-500/20 space-y-3 text-xs md:text-sm text-gray-300 leading-relaxed overflow-y-auto pr-2 max-h-[50vh]">
+                <p>
+                    Once upon a time in the long-lost shelter town of <strong>Corneville</strong>, a mother named <strong>Giya</strong> and a father named <strong>Zeo</strong> lived with their young child named <strong>Geta</strong>.
+                </p>
+                <p>
+                    When Geta grew to 7 years old, he longed to play outside. However, as food supplies ran empty, Zeo and Giya instructed him: <em>"Geta, stay inside and remain disciplined while we find food."</em>
+                </p>
+                <p>
+                    Disobeying his parents' instructions, Geta wandered past the town borders at 8 PM, becoming completely lost in unfamiliar wilderness towards <strong>Aleho Town</strong>. His worried parents created a public blog online titled <em>"The Parable Of A Lost Name"</em> seeking help.
+                </p>
+                <p>
+                    Kind-hearted <strong>Samaritan Agents</strong> spotted Geta in Aleho Town and recognized him from the blog post. They guided Geta back safely to Corneville, reminding him that obedience, structure, and parental protection keep children safe from harm and starvation.
+                </p>
+            </div>
+
+            <div class="mt-4 p-3 bg-yellow-950/40 rounded-xl border border-yellow-500/40 text-center">
+                <h3 class="cinzel text-xs font-bold text-yellow-400 uppercase tracking-widest mb-1">Moral Lesson</h3>
+                <p class="text-xs text-yellow-100">
+                    "Always respect and follow your parents' guidance. Staying protected within the safe bounds of home protects you from unnecessary risks, harm, and lost identity."
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ENDING SCREEN MODAL -->
+    <div id="ending-modal" class="fixed inset-0 bg-black/95 z-50 hidden flex items-center justify-center p-6 text-center">
+        <div class="glass-panel-gold max-w-xl rounded-3xl p-8 border-2 border-yellow-400 shadow-2xl space-y-6">
+            <div class="w-20 h-20 bg-yellow-500/20 border-2 border-yellow-400 rounded-full flex items-center justify-center mx-auto text-yellow-400 text-4xl">
+                <i class="fa-solid fa-house-chimney-heart"></i>
+            </div>
+            <h1 class="cinzel text-3xl font-black text-yellow-400 tracking-wider">REUNITED IN CORNEVILLE</h1>
+            <p class="text-sm text-gray-200 leading-relaxed">
+                You safely guided <strong>Geta</strong> back through the wilderness to Father Zeo and Mother Giya with the help of the Samaritan Agents!
+            </p>
+
+            <div class="bg-gray-900/80 p-4 rounded-2xl border border-yellow-500/30 text-left text-xs space-y-2 text-yellow-200">
+                <div class="font-bold cinzel text-center text-sm text-yellow-400 mb-2">★ Story Moral Lesson Unlocked ★</div>
+                <p>• Respecting parental discipline keeps children safe from wilderness dangers and starvation.</p>
+                <p>• Unity between family and Samaritans ensures lost souls find their way home.</p>
+            </div>
+
+            <button onclick="location.reload()" class="w-full py-3 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-extrabold text-sm rounded-xl transition cinzel tracking-widest shadow-lg">
+                REPLAY PARABLE
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* --- SOUND EFFECTS (Web Audio API Synthesizer) --- */
+        class SoundEngine {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            playAttack() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+            playHit() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+            playLevelUp() {
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.08);
+                    osc.stop(this.ctx.currentTime + idx * 0.08 + 0.2);
+                });
+            }
+        }
+        const sfx = new SoundEngine();
+
+        // Player & Game State
+        const gameState = {
+            player: {
+                level: 1,
+                hp: 100,
+                maxHp: 100,
+                mp: 50,
+                maxMp: 50,
+                exp: 0,
+                maxExp: 100,
+                atk: 12,
+                def: 5,
+                speed: 10,
+                skillPoints: 0,
+                position: { x: 0, y: 0, z: 0 }
+            },
+            currentQuestIndex: 0,
+            inventory: [
+                { id: 'ration', name: 'Food Ration', type: 'consumable', val: 30, icon: 'fa-bread-slice' },
+                { id: 'badge', name: 'Samaritan Badge', type: 'quest', val: 0, icon: 'fa-shield' }
+            ],
+            quests: [
+                {
+                    id: 1,
+                    title: "Main 1: Disobey & Explore",
+                    desc: "Parents warned you to stay home. Leave Corneville Town limits at night.",
+                    target: "Leave Corneville Boundary",
+                    done: false
+                },
+                {
+                    id: 2,
+                    title: "Main 2: Lost in the Wilderness",
+                    desc: "Navigate through the dark forest and cross the bridge guarded by temptation.",
+                    target: "Defeat Boss & Reach Aleho Town",
+                    done: false
+                },
+                {
+                    id: 3,
+                    title: "Main 3: Samaritan Guidance",
+                    desc: "Locate Samaritan Agents in Aleho Town who saw the missing blog.",
+                    target: "Talk to Samaritan Agent",
+                    done: false
+                },
+                {
+                    id: 4,
+                    title: "Main 4: Return Home Safely",
+                    desc: "Escort back to Corneville Town and reunite with Father Zeo and Mother Giya.",
+                    target: "Reunite with Parents in Corneville",
+                    done: false
+                }
+            ]
+        };
+
+        // Three.js Scene Setup
+        let scene, camera, renderer;
+        let playerMesh, swordMesh;
+        let npcs = [], enemies = [], bossEnemy = null;
+        const keys = {};
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene & Fog
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0c16);
+            scene.fog = new THREE.FogExp2(0x0a0c16, 0.015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x404060, 1.2);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffedd5, 1.5);
+            dirLight.position.set(50, 80, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Ground Terrain
+            const groundGeo = new THREE.PlaneGeometry(300, 300, 32, 32);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a2e1a, roughness: 0.9 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Add Environment Elements (Trees, Rocks, Towns)
+            createEnvironment();
+            createPlayer();
+            createNPCs();
+            createEnemies();
+
+            // Window Resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createEnvironment() {
+            // Corneville Town Base (Shelter & Homes)
+            const cornevilleGroup = new THREE.Group();
+            cornevilleGroup.position.set(-60, 0, -40);
+
+            // Corneville Shelter Building
+            const houseGeo = new THREE.BoxGeometry(12, 8, 12);
+            const houseMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
+            const house = new THREE.Mesh(houseGeo, houseMat);
+            house.position.y = 4;
+            house.castShadow = true;
+            cornevilleGroup.add(house);
+
+            const roofGeo = new THREE.ConeGeometry(10, 5, 4);
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0x5c2c16 });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = 10.5;
+            roof.rotation.y = Math.PI / 4;
+            cornevilleGroup.add(roof);
+
+            scene.add(cornevilleGroup);
+
+            // Aleho Town Base
+            const alehoGroup = new THREE.Group();
+            alehoGroup.position.set(70, 0, 60);
+
+            const alehoHouse = new THREE.Mesh(houseGeo, new THREE.MeshStandardMaterial({ color: 0x3a4b5c }));
+            alehoHouse.position.y = 4;
+            alehoHouse.castShadow = true;
+            alehoGroup.add(alehoHouse);
+
+            const alehoRoof = new THREE.Mesh(roofGeo, new THREE.MeshStandardMaterial({ color: 0x1f2937 }));
+            alehoRoof.position.y = 10.5;
+            alehoRoof.rotation.y = Math.PI / 4;
+            alehoGroup.add(alehoRoof);
+
+            scene.add(alehoGroup);
+
+            // River & Bridge separating towns
+            const riverGeo = new THREE.PlaneGeometry(25, 280);
+            const riverMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.2 });
+            const river = new THREE.Mesh(riverGeo, riverMat);
+            river.rotation.x = -Math.PI / 2;
+            river.position.set(0, 0.1, 0);
+            scene.add(river);
+
+            // Bridge Mesh
+            const bridgeGeo = new THREE.BoxGeometry(30, 1, 10);
+            const bridgeMat = new THREE.MeshStandardMaterial({ color: 0x78350f });
+            const bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
+            bridge.position.set(0, 0.6, 10);
+            scene.add(bridge);
+
+            // Scatter Trees and Rocks
+            const treeGeo = new THREE.ConeGeometry(3, 10, 5);
+            const treeMat = new THREE.MeshStandardMaterial({ color: 0x064e3b });
+            const trunkGeo = new THREE.CylinderGeometry(0.5, 0.7, 3);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x451a03 });
+
+            for (let i = 0; i < 70; i++) {
+                const x = (Math.random() - 0.5) * 260;
+                const z = (Math.random() - 0.5) * 260;
+
+                // Avoid placing inside river core
+                if (Math.abs(x) < 15) continue;
+
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.y = 1.5;
+                const leaves = new THREE.Mesh(treeGeo, treeMat);
+                leaves.position.y = 6;
+                tree.add(trunk, leaves);
+                tree.position.set(x, 0, z);
+                scene.add(tree);
+            }
+        }
+
+        function createPlayer() {
+            const playerGroup = new THREE.Group();
+
+            // Player Body
+            const bodyGeo = new THREE.CylinderGeometry(0.8, 0.6, 2.5, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1.25;
+            body.castShadow = true;
+            playerGroup.add(body);
+
+            // Head
+            const headGeo = new THREE.SphereGeometry(0.6, 8, 8);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.8;
+            head.castShadow = true;
+            playerGroup.add(head);
+
+            // Sword Mesh
+            const swordGroup = new THREE.Group();
+            const bladeGeo = new THREE.BoxGeometry(0.15, 2.2, 0.3);
+            const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.8 });
+            const blade = new THREE.Mesh(bladeGeo, bladeMat);
+            blade.position.y = 1.1;
+            swordGroup.add(blade);
+
+            swordGroup.position.set(0.9, 1.2, 0.4);
+            swordGroup.rotation.x = Math.PI / 4;
+            playerGroup.add(swordGroup);
+
+            swordMesh = swordGroup;
+            playerMesh = playerGroup;
+            playerMesh.position.set(-50, 0, -30); // Spawn in Corneville
+            scene.add(playerMesh);
+        }
+
+        function createNPCs() {
+            // Father Zeo & Mother Giya (Corneville)
+            npcs.push(createNPCMesh('Father Zeo', 0x3b82f6, -55, 0, -35, "Geta, listen to us. We must head out for food. Stay here safely!"));
+            npcs.push(createNPCMesh('Mother Giya', 0xec4899, -45, 0, -35, "Don't wander away outside, Geta. Remember your discipline!"));
+
+            // Samaritan Agents (Aleho Town)
+            npcs.push(createNPCMesh('Samaritan Agent', 0x10b981, 65, 0, 55, "Are you Geta? We saw your parents' blog post! Let me assist you home."));
+        }
+
+        function createNPCMesh(name, colorHex, x, y, z, text) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8, 0.6, 2.5, 8),
+                new THREE.MeshStandardMaterial({ color: colorHex })
+            );
+            body.position.y = 1.25;
+            group.add(body);
+
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.6, 8, 8),
+                new THREE.MeshStandardMaterial({ color: 0xffedd5 })
+            );
+            head.position.y = 2.8;
+            group.add(head);
+
+            group.position.set(x, y, z);
+            scene.add(group);
+
+            return { name, mesh: group, dialogue: text, x, z };
+        }
+
+        function createEnemies() {
+            // Wandering Wilderness Shadows
+            for (let i = 0; i < 5; i++) {
+                const x = (Math.random() - 0.5) * 80 + 10;
+                const z = (Math.random() - 0.5) * 80;
+                enemies.push(createEnemyMesh(`Wild Shadow ${i+1}`, 50, 8, x, z, false));
+            }
+
+            // Boss: Shadow of Temptation (On Bridge)
+            bossEnemy = createEnemyMesh('Shadow of Temptation', 300, 15, 0, 10, true);
+            enemies.push(bossEnemy);
+        }
+
+        function createEnemyMesh(name, hp, atk, x, z, isBoss) {
+            const group = new THREE.Group();
+            const scale = isBoss ? 2.0 : 1.0;
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: isBoss ? 0xd97706 : 0x7f1d1d, wireframe: true });
+            const body = new THREE.Mesh(new THREE.ConeGeometry(1.2 * scale, 3 * scale, 6), bodyMat);
+            body.position.y = 1.5 * scale;
+            group.add(body);
+
+            group.position.set(x, 0, z);
+            scene.add(group);
+
+            return {
+                name,
+                mesh: group,
+                hp,
+                maxHp: hp,
+                atk,
+                isBoss,
+                alive: true
+            };
+        }
+
+        // Keyboard Listener
+        window.addEventListener('keydown', (e) => keys[e.code] = true);
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        let attackCooldown = false;
+
+        function handleInput() {
+            if (!playerMesh) return;
+
+            const speed = (keys['ShiftLeft'] || keys['ShiftRight']) ? 0.45 : 0.25;
+            let moved = false;
+
+            if (keys['KeyW'] || keys['ArrowUp']) {
+                playerMesh.position.z -= speed;
+                playerMesh.rotation.y = Math.PI;
+                moved = true;
+            }
+            if (keys['KeyS'] || keys['ArrowDown']) {
+                playerMesh.position.z += speed;
+                playerMesh.rotation.y = 0;
+                moved = true;
+            }
+            if (keys['KeyA'] || keys['ArrowLeft']) {
+                playerMesh.position.x -= speed;
+                playerMesh.rotation.y = -Math.PI / 2;
+                moved = true;
+            }
+            if (keys['KeyD'] || keys['ArrowRight']) {
+                playerMesh.position.x += speed;
+                playerMesh.rotation.y = Math.PI / 2;
+                moved = true;
+            }
+
+            // Space key for Attack
+            if (keys['Space']) {
+                performAttack();
+            }
+
+            // Interact E key
+            if (keys['KeyE']) {
+                checkNPCInteraction();
+            }
+
+            // Quest 1 Check: Disobeying parents by moving far away from Corneville
+            if (gameState.currentQuestIndex === 0 && playerMesh.position.distanceTo(new THREE.Vector3(-50, 0, -30)) > 25) {
+                advanceQuest(0);
+            }
+
+            // Quest 3 Check: Reaching Aleho town
+            if (gameState.currentQuestIndex === 2 && playerMesh.position.distanceTo(new THREE.Vector3(65, 0, 55)) < 15) {
+                advanceQuest(2);
+            }
+
+            // Camera follow player
+            camera.position.x = playerMesh.position.x;
+            camera.position.y = playerMesh.position.y + 18;
+            camera.position.z = playerMesh.position.z + 22;
+            camera.lookAt(playerMesh.position);
+
+            // Update mini-map canvas
+            updateMinimap();
+        }
+
+        function performAttack() {
+            if (attackCooldown) return;
+            attackCooldown = true;
+            sfx.playAttack();
+
+            // Swing Sword Animation
+            swordMesh.rotation.z = -Math.PI / 2;
+            setTimeout(() => {
+                swordMesh.rotation.z = 0;
+                attackCooldown = false;
+            }, 250);
+
+            // Hit detection against enemies
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+                const dist = playerMesh.position.distanceTo(enemy.mesh.position);
+                if (dist < 4.5) {
+                    const dmg = gameState.player.atk + Math.floor(Math.random() * 5);
+                    enemy.hp -= dmg;
+                    sfx.playHit();
+                    showDamageText(dmg, enemy.mesh.position);
+
+                    // If Boss update Boss Bar
+                    if (enemy.isBoss) {
+                        document.getElementById('boss-hud').classList.remove('hidden');
+                        document.getElementById('boss-hud').classList.add('flex');
+                        document.getElementById('boss-hp-bar').style.width = `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%`;
+                        document.getElementById('boss-hp-text').innerText = `${Math.max(0, enemy.hp)} / ${enemy.maxHp}`;
+                    }
+
+                    if (enemy.hp <= 0) {
+                        enemy.alive = false;
+                        scene.remove(enemy.mesh);
+                        gainExp(enemy.isBoss ? 150 : 35);
+
+                        if (enemy.isBoss) {
+                            document.getElementById('boss-hud').classList.add('hidden');
+                            if (gameState.currentQuestIndex === 1) advanceQuest(1);
+                        }
+                    }
+                }
+            });
+        }
+
+        function checkNPCInteraction() {
+            npcs.forEach(npc => {
+                const dist = playerMesh.position.distanceTo(npc.mesh.position);
+                if (dist < 5) {
+                    openDialogue(npc.name, npc.dialogue);
+
+                    // Final Quest step check
+                    if (gameState.currentQuestIndex === 3 && (npc.name === 'Father Zeo' || npc.name === 'Mother Giya')) {
+                        toggleModal('ending-modal');
+                    }
+                }
+            });
+        }
+
+        function showDamageText(amount, pos) {
+            const el = document.createElement('div');
+            el.className = 'damage-text text-red-500 text-lg';
+            el.innerText = `-${amount}`;
+            
+            // Screen projection
+            const tempVec = pos.clone();
+            tempVec.y += 2;
+            tempVec.project(camera);
+
+            const x = (tempVec.x * .5 + .5) * window.innerWidth;
+            const y = (-(tempVec.y * .5) + .5) * window.innerHeight;
+
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            document.body.appendChild(el);
+
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        function gainExp(amount) {
+            gameState.player.exp += amount;
+            if (gameState.player.exp >= gameState.player.maxExp) {
+                gameState.player.level++;
+                gameState.player.exp -= gameState.player.maxExp;
+                gameState.player.maxExp += 50;
+                gameState.player.maxHp += 20;
+                gameState.player.hp = gameState.player.maxHp;
+                gameState.player.skillPoints += 1;
+                sfx.playLevelUp();
+                updateHUD();
+            }
+            updateHUD();
+        }
+
+        function updateHUD() {
+            document.getElementById('player-lvl').innerText = `Lv.${gameState.player.level}`;
+            document.getElementById('hp-bar').style.width = `${(gameState.player.hp / gameState.player.maxHp) * 100}%`;
+            document.getElementById('hp-text').innerText = `${gameState.player.hp} / ${gameState.player.maxHp}`;
+            document.getElementById('mp-bar').style.width = `${(gameState.player.mp / gameState.player.maxMp) * 100}%`;
+            document.getElementById('exp-bar').style.width = `${(gameState.player.exp / gameState.player.maxExp) * 100}%`;
+            document.getElementById('skill-points-count').innerText = gameState.player.skillPoints;
+            document.getElementById('stat-atk').innerText = gameState.player.atk;
+            document.getElementById('stat-def').innerText = gameState.player.def;
+            document.getElementById('stat-spd').innerText = gameState.player.speed;
+        }
+
+        function openDialogue(speaker, text) {
+            document.getElementById('dialogue-speaker').innerText = speaker;
+            document.getElementById('dialogue-text').innerText = text;
+            document.getElementById('dialogue-box').classList.remove('hidden');
+        }
+
+        document.getElementById('dialogue-next-btn').addEventListener('click', () => {
+            document.getElementById('dialogue-box').classList.add('hidden');
+        });
+
+        document.getElementById('btn-attack').addEventListener('click', performAttack);
+        document.getElementById('btn-interact').addEventListener('click', checkNPCInteraction);
+
+        function advanceQuest(index) {
+            if (index === gameState.currentQuestIndex) {
+                gameState.quests[index].done = true;
+                gameState.currentQuestIndex++;
+                renderQuests();
+                if (gameState.quests[gameState.currentQuestIndex]) {
+                    document.getElementById('active-objective-text').innerText = gameState.quests[gameState.currentQuestIndex].target;
+                } else {
+                    document.getElementById('active-objective-text').innerText = "Return to Zeo & Giya in Corneville!";
+                }
+            }
+        }
+
+        function renderQuests() {
+            const container = document.getElementById('quest-list-container');
+            container.innerHTML = '';
+            gameState.quests.forEach((q, i) => {
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-xl border ${q.done ? 'bg-green-950/40 border-green-600/40' : (i === gameState.currentQuestIndex ? 'bg-yellow-950/40 border-yellow-500/60' : 'bg-gray-900/40 border-gray-800')}`;
+                item.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold ${q.done ? 'text-green-400' : 'text-yellow-400'}">${q.title}</span>
+                        <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded ${q.done ? 'bg-green-600/20 text-green-300' : 'bg-gray-800 text-gray-400'}">${q.done ? 'COMPLETED' : 'IN PROGRESS'}</span>
+                    </div>
+                    <p class="text-[11px] text-gray-300">${q.desc}</p>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function upgradeSkill(type) {
+            if (type === 'heal' && gameState.player.mp >= 10) {
+                gameState.player.mp -= 10;
+                gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + 50);
+                updateHUD();
+                return;
+            }
+
+            if (gameState.player.skillPoints > 0) {
+                gameState.player.skillPoints--;
+                if (type === 'shield') gameState.player.def += 5;
+                if (type === 'speed') gameState.player.speed += 2;
+                if (type === 'attack') gameState.player.atk += 8;
+                updateHUD();
+            }
+        }
+
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = 120;
+            canvas.height = 120;
+
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(0, 0, 120, 120);
+
+            // Draw player dot
+            const px = (playerMesh.position.x + 150) / 300 * 120;
+            const pz = (playerMesh.position.z + 150) / 300 * 120;
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(px, pz, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Enemies
+            ctx.fillStyle = '#ef4444';
+            enemies.forEach(e => {
+                if (!e.alive) return;
+                const ex = (e.mesh.position.x + 150) / 300 * 120;
+                const ez = (e.mesh.position.z + 150) / 300 * 120;
+                ctx.fillRect(ex - 2, ez - 2, 4, 4);
+            });
+        }
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.toggle('hidden');
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            handleInput();
+
+            // Rotate Boss slowly
+            if (bossEnemy && bossEnemy.alive) {
+                bossEnemy.mesh.rotation.y += 0.02;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            init3D();
+            renderQuests();
+            updateHUD();
+            animate();
+        };
+    </script>
+</body>
+</html>
